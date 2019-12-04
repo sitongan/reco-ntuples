@@ -333,6 +333,7 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   std::vector<float> simcluster_pt_;
   std::vector<float> simcluster_energy_;
   std::vector<float> simcluster_simEnergy_;
+  std::vector<int> simcluster_pid_;
   std::vector<std::vector<uint32_t>> simcluster_hits_;
   std::vector<std::vector<int>> simcluster_hits_indices_;
   std::vector<std::vector<float>> simcluster_fractions_;
@@ -671,6 +672,7 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
   t_->Branch("simcluster_phi", &simcluster_phi_);
   t_->Branch("simcluster_pt", &simcluster_pt_);
   t_->Branch("simcluster_energy", &simcluster_energy_);
+  t_->Branch("simcluster_pid", &simcluster_pid_);
   t_->Branch("simcluster_simEnergy", &simcluster_simEnergy_);
   t_->Branch("simcluster_hits", &simcluster_hits_);
   t_->Branch("simcluster_hits_indices", &simcluster_hits_indices_);
@@ -915,6 +917,7 @@ void HGCalAnalysis::clearVariables() {
   // sim clusters
   //
   simcluster_eta_.clear();
+  simcluster_pid_.clear();
   simcluster_phi_.clear();
   simcluster_pt_.clear();
   simcluster_energy_.clear();
@@ -1491,6 +1494,7 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
     simcluster_eta_.push_back(it_simClus->eta());
     simcluster_phi_.push_back(it_simClus->phi());
     simcluster_pt_.push_back(it_simClus->pt());
+    simcluster_pid_.push_back(it_simClus->pdgId());
     simcluster_energy_.push_back(it_simClus->energy());
     simcluster_simEnergy_.push_back(it_simClus->simEnergy());
     simcluster_hits_.push_back(hits);
