@@ -26,6 +26,8 @@
 #include "SimDataFormats/CaloAnalysis/interface/CaloParticle.h"
 #include "SimDataFormats/CaloAnalysis/interface/SimCluster.h"
 #include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
+#include "SimDataFormats/CaloHit/interface/PCaloHitContainer.h"
+#include "SimDataFormats/CaloHit/interface/PCaloHit.h"
 
 #include "DataFormats/Math/interface/deltaPhi.h"
 // track data formats
@@ -37,6 +39,8 @@
 #include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
 #include "Geometry/CaloTopology/interface/HGCalTopology.h"
 #include "Geometry/Records/interface/CaloGeometryRecord.h"
+#include "Geometry/HcalCommonData/interface/HcalHitRelabeller.h"
+#include "Geometry/HGCalCommonData/interface/HGCalGeometryMode.h"
 
 #include "CommonTools/BaseParticlePropagator/interface/BaseParticlePropagator.h"
 #include "FastSimulation/CaloGeometryTools/interface/Transform3DPJ.h"
@@ -47,6 +51,12 @@
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 #include "MagneticField/VolumeGeometry/interface/MagVolumeOutsideValidity.h"
 #include "TrackPropagation/RungeKutta/interface/defaultRKPropagator.h"
+#include "DataFormats/HcalDetId/interface/HcalTestNumbering.h"
+#include "SimDataFormats/CaloTest/interface/HGCalTestNumbering.h"
+#include "Geometry/HGCalCommonData/interface/HGCalDDDConstants.h"
+#include "Geometry/HcalCommonData/interface/HcalDDDRecConstants.h"
+#include "Geometry/Records/interface/HcalRecNumberingRecord.h"
+#include "Geometry/HGCalCommonData/interface/HGCalGeometryMode.h"
 
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
 #include "FWCore/ServiceRegistry/interface/Service.h"
@@ -162,7 +172,6 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
   virtual void beginRun(edm::Run const &iEvent, edm::EventSetup const &) override;
   virtual void endRun(edm::Run const &iEvent, edm::EventSetup const &) override;
-
  private:
   virtual void beginJob() override;
   virtual void analyze(const edm::Event &, const edm::EventSetup &) override;
@@ -196,6 +205,7 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
 
   // ----------member data ---------------------------
 
+  std::string caloHitSource_;
   edm::EDGetTokenT<HGCRecHitCollection> recHitsEE_;
   edm::EDGetTokenT<HGCRecHitCollection> recHitsFH_;
   edm::EDGetTokenT<HGCRecHitCollection> recHitsBH_;
@@ -217,6 +227,7 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   edm::EDGetTokenT<edm::ValueMap<reco::CaloClusterPtr>> electrons_ValueMapClusters_;
   edm::EDGetTokenT<std::vector<reco::Vertex>> vertices_;
   edm::EDGetTokenT<std::vector<reco::PFCandidate>> pfCandidates_;
+  edm::EDGetTokenT<edm::PCaloHitContainer> simHits_;
 
   TTree *t_;
 
@@ -342,7 +353,17 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   std::vector<std::vector<int>> simcluster_wafers_v_;
   std::vector<std::vector<int>> simcluster_cells_u_;
   std::vector<std::vector<int>> simcluster_cells_v_;
-
+  std::vector<float> simcluster_time_impactPoint_;
+  std::vector<float> simcluster_phi_impactPoint_;
+  std::vector<float> simcluster_eta_impactPoint_;
+  std::vector<float> simcluster_pt_impactMomentum_;
+  ////////////////////
+  //simhits
+  //
+  std::vector<double> simHit_time_;
+  std::vector<double> simHit_x_;
+  std::vector<double> simHit_y_;
+  std::vector<double> simHit_z_;
   ////////////////////
   // PF clusters
   //
@@ -497,6 +518,7 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
       inputTag_HGCalMultiCluster_(iConfig.getParameter<std::string>("inputTag_HGCalMultiCluster")),
       rawRecHits_(iConfig.getParameter<bool>("rawRecHits")),
       verbose_(iConfig.getParameter<bool>("verbose")),
+      caloHitSource_(iConfig.getParameter<std::string>("CaloHitSource")),
       particleFilter_(iConfig.getParameter<edm::ParameterSet>("TestParticleFilter")) {
   // now do what ever initialization is needed
   mySimEvent_ = new FSimEvent(particleFilter_);
@@ -530,6 +552,7 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
 
   simTracks_ = consumes<std::vector<SimTrack>>(edm::InputTag("g4SimHits"));
   simVertices_ = consumes<std::vector<SimVertex>>(edm::InputTag("g4SimHits"));
+  simHits_ = consumes<edm::PCaloHitContainer>(edm::InputTag("g4SimHits", caloHitSource_));
 
   if (readCaloParticles_) {
     caloParticles_ = consumes<std::vector<CaloParticle>>(edm::InputTag("mix", "MergedCaloTruth"));
@@ -682,7 +705,17 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
   t_->Branch("simcluster_wafers_v", &simcluster_wafers_v_);
   t_->Branch("simcluster_cells_u", &simcluster_cells_u_);
   t_->Branch("simcluster_cells_v", &simcluster_cells_v_);
-
+  t_->Branch("simcluster_time_impactPoint", &simcluster_time_impactPoint_);
+  t_->Branch("simcluster_eta_impactPoint", &simcluster_eta_impactPoint_);
+  t_->Branch("simcluster_phi_impactPoint", &simcluster_phi_impactPoint_); 
+  t_->Branch("simcluster_pt_impactMomentum", &simcluster_pt_impactMomentum_);
+  ////////////////////
+  // sim hits
+  //    
+  t_->Branch("simHit_time", &simHit_time_);
+  t_->Branch("simHit_x", &simHit_x_);
+  t_->Branch("simHit_y", &simHit_y_);
+  t_->Branch("simHit_z", &simHit_z_);
   ////////////////////
   // PF clusters
   //
@@ -809,6 +842,8 @@ HGCalAnalysis::~HGCalAnalysis() {
 //
 // member functions
 //
+//
+
 void HGCalAnalysis::clearVariables() {
   ev_run_ = 0;
   ev_lumi_ = 0;
@@ -930,7 +965,17 @@ void HGCalAnalysis::clearVariables() {
   simcluster_wafers_v_.clear();
   simcluster_cells_u_.clear();
   simcluster_cells_v_.clear();
-
+  simcluster_time_impactPoint_.clear(); 
+  simcluster_eta_impactPoint_.clear();
+  simcluster_phi_impactPoint_.clear();
+  simcluster_pt_impactMomentum_.clear();
+  ////////////////////
+  //sim hits
+  //
+  simHit_time_.clear();
+  simHit_x_.clear();
+  simHit_y_.clear();
+  simHit_z_.clear();
   ////////////////////
   // PF clusters
   //
@@ -1067,6 +1112,8 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
   Handle<std::vector<reco::PFCluster>> pfClusterFromMultiClHandle;
   Handle<std::vector<CaloParticle>> caloParticleHandle;
   Handle<std::vector<reco::Track>> trackHandle;
+  edm::Handle<edm::PCaloHitContainer> theCaloHitContainers;
+  iEvent.getByToken(simHits_, theCaloHitContainers);
 
   const std::vector<SimCluster> *simClusters = 0;
   iEvent.getByToken(simClusters_, simClusterHandle);
@@ -1453,6 +1500,24 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
     }
   }
 
+  double refSpeed_ = 0.1 * CLHEP::c_light;
+  if(theCaloHitContainers.isValid())
+  {
+    std::vector<PCaloHit> caloHits;
+    caloHits.insert(caloHits.end(), theCaloHitContainers->begin(), theCaloHitContainers->end());
+    for (unsigned int i = 0; i < caloHits.size(); ++i) 
+    {
+      unsigned int id_ = caloHits.at(i).id();
+      HGCalDetId detid = HGCalDetId(id_);
+      const GlobalPoint pos = recHitTools_.getPosition(detid);
+      double time = caloHits.at(i).time() - pos.mag()/refSpeed_;
+      simHit_time_.push_back(time);
+      simHit_x_.push_back(pos.x());
+      simHit_y_.push_back(pos.y());
+      simHit_z_.push_back(pos.z());
+    }
+  }
+
   // loop over simClusters
   for (std::vector<SimCluster>::const_iterator it_simClus = simClusters->begin();
        it_simClus != simClusters->end(); ++it_simClus) {
@@ -1491,7 +1556,10 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
         cells_v.push_back(std::numeric_limits<unsigned int>::max());
       }
     }
-
+    simcluster_pt_impactMomentum_.push_back(it_simClus->impactMomentum().pt());
+    simcluster_phi_impactPoint_.push_back(it_simClus->impactPoint().phi());
+    simcluster_eta_impactPoint_.push_back(it_simClus->impactPoint().eta());
+    simcluster_time_impactPoint_.push_back(it_simClus->impactPoint().t());
     simcluster_eta_.push_back(it_simClus->eta());
     simcluster_phi_.push_back(it_simClus->phi());
     simcluster_pt_.push_back(it_simClus->pt());
@@ -1801,6 +1869,7 @@ void HGCalAnalysis::beginRun(edm::Run const &iEvent, edm::EventSetup const &es) 
   es.get<IdealMagneticFieldRecord>().get(magfield);
 
   aField_ = &(*magfield);
+  //es.get<CaloGeometryRecord>().get(geometry);
 }
 
 void HGCalAnalysis::endRun(edm::Run const &iEvent, edm::EventSetup const &) {}
