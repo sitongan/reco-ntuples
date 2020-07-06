@@ -4,7 +4,7 @@ from Configuration.StandardSequences.Eras import eras
 process = cms.Process("Demo")
 process.load('Configuration.StandardSequences.Services_cff')
 process.load('SimGeneral.HepPDTESSource.pythiapdt_cfi')
-process.load('Configuration.Geometry.GeometryExtended2026D41Reco_cff')
+process.load('Configuration.Geometry.GeometryExtended2026D49Reco_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load("FWCore.MessageService.MessageLogger_cfi")
@@ -18,12 +18,22 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 from FastSimulation.Event.ParticleFilter_cfi import *
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(2) )
 
 process.source = cms.Source("PoolSource",
     # replace 'step3.root' with the source file you want to use
     fileNames = cms.untracked.vstring(
-        '/store/cmst3/group/hgcal/CMG_studies/validation/step3.root'
+        #'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n100_part1_directional.root'
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part1_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part2_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part3_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part4_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part5_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part6_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part7_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part8_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part9_directional.root',
+        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part10_directional.root'
     ),
     duplicateCheckMode = cms.untracked.string("noDuplicateCheck")
 )
@@ -31,6 +41,7 @@ process.source = cms.Source("PoolSource",
 process.ana = cms.EDAnalyzer('HGCalAnalysis',
                              detector = cms.string("all"),
                              inputTag_HGCalMultiCluster = cms.string("hgcalMultiClusters"),
+                             CaloHitSource = cms.string("HGCHitsEE"),
                              rawRecHits = cms.bool(True),
                              verbose = cms.bool(True),
                              readCaloParticles = cms.bool(True),
@@ -48,7 +59,7 @@ process.ana.TestParticleFilter.protonEMin = cms.double(100000)
 process.ana.TestParticleFilter.etaMax = cms.double(3.1)
 
 process.TFileService = cms.Service("TFileService",
-                                   fileName = cms.string("hgcalNtuple.root")
+                                   fileName = cms.string("hgcalNtuple_1_events_Updated.root")
 
                                    )
 # The clustering algorithm has been changed
