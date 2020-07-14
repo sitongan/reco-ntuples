@@ -18,22 +18,22 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 from FastSimulation.Event.ParticleFilter_cfi import *
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(2) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 process.source = cms.Source("PoolSource",
     # replace 'step3.root' with the source file you want to use
     fileNames = cms.untracked.vstring(
         #'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n100_part1_directional.root'
         'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part1_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part2_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part3_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part4_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part5_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part6_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part7_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part8_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part9_directional.root',
-        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part10_directional.root'
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part2_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part3_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part4_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part5_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part6_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part7_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part8_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part9_directional.root',
+#        'file:/uscms_data/d2/sapta/work/HighGranularityCalorimeter/TimingStudies_11X/TimingML/SimClusterInclusionJanUpdate/CMSSW_11_0_0_patch1/src/GammaTime_step3/step3_Gamma_Pt10_n1000_part10_directional.root'
     ),
     duplicateCheckMode = cms.untracked.string("noDuplicateCheck")
 )
@@ -41,7 +41,9 @@ process.source = cms.Source("PoolSource",
 process.ana = cms.EDAnalyzer('HGCalAnalysis',
                              detector = cms.string("all"),
                              inputTag_HGCalMultiCluster = cms.string("hgcalMultiClusters"),
-                             CaloHitSource = cms.string("HGCHitsEE"),
+                             CaloHitSourceEE = cms.string("HGCHitsEE"),
+                             CaloHitSourceHEfront = cms.string("HGCHitsHEfront"),
+                             CaloHitSourceHEback = cms.string("HGCHitsHEback"),
                              rawRecHits = cms.bool(True),
                              verbose = cms.bool(True),
                              readCaloParticles = cms.bool(True),
