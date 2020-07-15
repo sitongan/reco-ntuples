@@ -172,6 +172,7 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
   virtual void beginRun(edm::Run const &iEvent, edm::EventSetup const &) override;
   virtual void endRun(edm::Run const &iEvent, edm::EventSetup const &) override;
+  DetId simToReco(const HGCalGeometry* geom, unsigned int simId);
  private:
   virtual void beginJob() override;
   virtual void analyze(const edm::Event &, const edm::EventSetup &) override;
@@ -205,7 +206,9 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
 
   // ----------member data ---------------------------
 
-  std::string caloHitSource_;
+  std::string caloHitSourceEE_;
+  std::string caloHitSourceHEfront_;
+  std::string caloHitSourceHEback_;
   edm::EDGetTokenT<HGCRecHitCollection> recHitsEE_;
   edm::EDGetTokenT<HGCRecHitCollection> recHitsFH_;
   edm::EDGetTokenT<HGCRecHitCollection> recHitsBH_;
@@ -227,7 +230,7 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   edm::EDGetTokenT<edm::ValueMap<reco::CaloClusterPtr>> electrons_ValueMapClusters_;
   edm::EDGetTokenT<std::vector<reco::Vertex>> vertices_;
   edm::EDGetTokenT<std::vector<reco::PFCandidate>> pfCandidates_;
-  edm::EDGetTokenT<edm::PCaloHitContainer> simHits_;
+  edm::EDGetTokenT<edm::PCaloHitContainer> simHitsEE_, simHitsHEfront_, simHitsHEback_;
 
   TTree *t_;
 
@@ -354,9 +357,15 @@ class HGCalAnalysis : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one:
   std::vector<std::vector<int>> simcluster_cells_u_;
   std::vector<std::vector<int>> simcluster_cells_v_;
   std::vector<float> simcluster_time_impactPoint_;
+  std::vector<float> simcluster_x_impactPoint_;
+  std::vector<float> simcluster_y_impactPoint_;
+  std::vector<float> simcluster_z_impactPoint_;
   std::vector<float> simcluster_phi_impactPoint_;
   std::vector<float> simcluster_eta_impactPoint_;
-  std::vector<float> simcluster_pt_impactMomentum_;
+  std::vector<float> simcluster_pt_impactMomentumPt_;
+  std::vector<float> simcluster_pt_impactMomentumEta_;
+  std::vector<float> simcluster_pt_impactMomentumPhi_;
+  std::vector<float> simcluster_pt_impactMomentumE_;
   ////////////////////
   //simhits
   //
@@ -518,7 +527,9 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
       inputTag_HGCalMultiCluster_(iConfig.getParameter<std::string>("inputTag_HGCalMultiCluster")),
       rawRecHits_(iConfig.getParameter<bool>("rawRecHits")),
       verbose_(iConfig.getParameter<bool>("verbose")),
-      caloHitSource_(iConfig.getParameter<std::string>("CaloHitSource")),
+      caloHitSourceEE_(iConfig.getParameter<std::string>("CaloHitSourceEE")),
+      caloHitSourceHEfront_(iConfig.getParameter<std::string>("CaloHitSourceHEfront")),
+      caloHitSourceHEback_(iConfig.getParameter<std::string>("CaloHitSourceHEback")), 
       particleFilter_(iConfig.getParameter<edm::ParameterSet>("TestParticleFilter")) {
   // now do what ever initialization is needed
   mySimEvent_ = new FSimEvent(particleFilter_);
@@ -552,7 +563,9 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
 
   simTracks_ = consumes<std::vector<SimTrack>>(edm::InputTag("g4SimHits"));
   simVertices_ = consumes<std::vector<SimVertex>>(edm::InputTag("g4SimHits"));
-  simHits_ = consumes<edm::PCaloHitContainer>(edm::InputTag("g4SimHits", caloHitSource_));
+  simHitsEE_ = consumes<edm::PCaloHitContainer>(edm::InputTag("g4SimHits", caloHitSourceEE_));
+  simHitsHEfront_ = consumes<edm::PCaloHitContainer>(edm::InputTag("g4SimHits", caloHitSourceHEfront_));
+  simHitsHEback_ = consumes<edm::PCaloHitContainer>(edm::InputTag("g4SimHits", caloHitSourceHEback_));
 
   if (readCaloParticles_) {
     caloParticles_ = consumes<std::vector<CaloParticle>>(edm::InputTag("mix", "MergedCaloTruth"));
@@ -706,9 +719,15 @@ HGCalAnalysis::HGCalAnalysis(const edm::ParameterSet &iConfig)
   t_->Branch("simcluster_cells_u", &simcluster_cells_u_);
   t_->Branch("simcluster_cells_v", &simcluster_cells_v_);
   t_->Branch("simcluster_time_impactPoint", &simcluster_time_impactPoint_);
+  t_->Branch("simcluster_x_impactPoint", &simcluster_x_impactPoint_);
+  t_->Branch("simcluster_y_impactPoint", &simcluster_y_impactPoint_);
+  t_->Branch("simcluster_z_impactPoint", &simcluster_z_impactPoint_);
   t_->Branch("simcluster_eta_impactPoint", &simcluster_eta_impactPoint_);
   t_->Branch("simcluster_phi_impactPoint", &simcluster_phi_impactPoint_); 
-  t_->Branch("simcluster_pt_impactMomentum", &simcluster_pt_impactMomentum_);
+  t_->Branch("simcluster_pt_impactMomentumPt", &simcluster_pt_impactMomentumPt_);
+  t_->Branch("simcluster_pt_impactMomentumEta", &simcluster_pt_impactMomentumEta_);
+  t_->Branch("simcluster_pt_impactMomentumPhi", &simcluster_pt_impactMomentumPhi_);
+  t_->Branch("simcluster_pt_impactMomentumE", &simcluster_pt_impactMomentumE_);
   ////////////////////
   // sim hits
   //    
@@ -843,6 +862,44 @@ HGCalAnalysis::~HGCalAnalysis() {
 // member functions
 //
 //
+//
+/*DetId HGCalAnalysis::simToReco(const HGCalGeometry* geom, unsigned int simId)
+{
+  DetId result(0);
+  //unsigned int result = 0;
+  //unsigned int DetId result = 0;
+  const auto& topo = geom->topology();
+  const auto& dddConst = topo.dddConstants();
+
+  if ((dddConst.geomMode() == HGCalGeometryMode::Hexagon8) ||
+      (dddConst.geomMode() == HGCalGeometryMode::Hexagon8Full) ||
+      (dddConst.geomMode() == HGCalGeometryMode::Trapezoid))
+  {
+    result = DetId(simId);
+  } else
+  {
+    //int subdet(DetId(simId).subdetId()), layer, cell, sec, subsec, zp;
+    //unsigned int subdet = DetId(simId).subdetId();
+    int subdet, layer, cell, sec, subsec, zp;
+    HGCalTestNumbering::unpackHexagonIndex(simId, subdet, zp, layer, sec, subsec, cell);
+    
+    //sec is wafer and subsec is celltyp
+    //skip this hit if after ganging it is not valid
+    auto recoLayerCell = dddConst.simToReco(cell, layer, sec, topo.detectorType());
+    cell = recoLayerCell.first;
+    layer = recoLayerCell.second;
+    if (layer < 0 || cell < 0) {
+      return result;
+    }
+    else {
+      //assign the RECO DetId
+      result = HGCalDetId((ForwardSubdetector)subdet, zp, layer, subsec, sec, cell);
+    }
+  }
+  return result;
+}*/
+
+
 
 void HGCalAnalysis::clearVariables() {
   ev_run_ = 0;
@@ -966,9 +1023,15 @@ void HGCalAnalysis::clearVariables() {
   simcluster_cells_u_.clear();
   simcluster_cells_v_.clear();
   simcluster_time_impactPoint_.clear(); 
+  simcluster_x_impactPoint_.clear();
+  simcluster_y_impactPoint_.clear();
+  simcluster_z_impactPoint_.clear();
   simcluster_eta_impactPoint_.clear();
   simcluster_phi_impactPoint_.clear();
-  simcluster_pt_impactMomentum_.clear();
+  simcluster_pt_impactMomentumPt_.clear();
+  simcluster_pt_impactMomentumPhi_.clear();
+  simcluster_pt_impactMomentumEta_.clear();
+  simcluster_pt_impactMomentumE_.clear();
   ////////////////////
   //sim hits
   //
@@ -1112,8 +1175,12 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
   Handle<std::vector<reco::PFCluster>> pfClusterFromMultiClHandle;
   Handle<std::vector<CaloParticle>> caloParticleHandle;
   Handle<std::vector<reco::Track>> trackHandle;
-  edm::Handle<edm::PCaloHitContainer> theCaloHitContainers;
-  iEvent.getByToken(simHits_, theCaloHitContainers);
+  edm::Handle<edm::PCaloHitContainer> theCaloHitContainersEE;
+  iEvent.getByToken(simHitsEE_, theCaloHitContainersEE);
+  edm::Handle<edm::PCaloHitContainer> theCaloHitContainersHEfront;
+  iEvent.getByToken(simHitsHEfront_, theCaloHitContainersHEfront);
+  edm::Handle<edm::PCaloHitContainer> theCaloHitContainersHEback;
+  iEvent.getByToken(simHitsHEback_, theCaloHitContainersHEback);
 
   const std::vector<SimCluster> *simClusters = 0;
   iEvent.getByToken(simClusters_, simClusterHandle);
@@ -1501,22 +1568,55 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
   }
 
   double refSpeed_ = 0.1 * CLHEP::c_light;
-  if(theCaloHitContainers.isValid())
+  if(theCaloHitContainersEE.isValid())
   {
-    std::vector<PCaloHit> caloHits;
-    caloHits.insert(caloHits.end(), theCaloHitContainers->begin(), theCaloHitContainers->end());
-    for (unsigned int i = 0; i < caloHits.size(); ++i) 
+    std::vector<PCaloHit> caloHitsEE;
+    caloHitsEE.insert(caloHitsEE.end(), theCaloHitContainersEE->begin(), theCaloHitContainersEE->end());
+    for (unsigned int i = 0; i < caloHitsEE.size(); ++i) 
     {
-      unsigned int id_ = caloHits.at(i).id();
+      unsigned int id_ = caloHitsEE.at(i).id();
       HGCalDetId detid = HGCalDetId(id_);
       const GlobalPoint pos = recHitTools_.getPosition(detid);
-      double time = caloHits.at(i).time() - pos.mag()/refSpeed_;
+      double time = caloHitsEE.at(i).time() - pos.mag()/refSpeed_;
       simHit_time_.push_back(time);
       simHit_x_.push_back(pos.x());
       simHit_y_.push_back(pos.y());
       simHit_z_.push_back(pos.z());
     }
   }
+  if(theCaloHitContainersHEfront.isValid())  
+  {
+    std::vector<PCaloHit> caloHitsHEfront;
+    caloHitsHEfront.insert(caloHitsHEfront.end(), theCaloHitContainersHEfront->begin(), theCaloHitContainersHEfront->end());
+    for (unsigned int i = 0; i < caloHitsHEfront.size(); ++i)
+    {
+      unsigned int id_ = caloHitsHEfront.at(i).id();
+      HGCalDetId detid = HGCalDetId(id_);
+      const GlobalPoint pos = recHitTools_.getPosition(detid);
+      double time = caloHitsHEfront.at(i).time() - pos.mag()/refSpeed_;
+      simHit_time_.push_back(time);
+      simHit_x_.push_back(pos.x());
+      simHit_y_.push_back(pos.y());
+      simHit_z_.push_back(pos.z());
+    } 
+  }
+  if(theCaloHitContainersHEback.isValid())
+  {
+    std::vector<PCaloHit> caloHitsHEback;
+    caloHitsHEback.insert(caloHitsHEback.end(), theCaloHitContainersHEback->begin(), theCaloHitContainersHEback->end());
+    for (unsigned int i = 0; i < caloHitsHEback.size(); ++i)
+    {
+      unsigned int id_ = caloHitsHEback.at(i).id();
+      HGCalDetId detid = HGCalDetId(id_);
+      const GlobalPoint pos = recHitTools_.getPosition(detid);
+      double time = caloHitsHEback.at(i).time() - pos.mag()/refSpeed_;
+      simHit_time_.push_back(time);
+      simHit_x_.push_back(pos.x());
+      simHit_y_.push_back(pos.y());
+      simHit_z_.push_back(pos.z());
+    }
+  }  
+
 
   // loop over simClusters
   for (std::vector<SimCluster>::const_iterator it_simClus = simClusters->begin();
@@ -1556,15 +1656,29 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
         cells_v.push_back(std::numeric_limits<unsigned int>::max());
       }
     }
-    simcluster_pt_impactMomentum_.push_back(it_simClus->impactMomentum().pt());
+    /*const math::XYZTLorentzVectorF impactPoint_ = math::XYZTLorentzVectorF(0, 0, 0, 0);*/
+    //const math::XYZTLorentzVectorF vtx(0, 0, 0, 0);
+    //GlobalPoint gpoint(0, 0, 0);
+    //std::cout << "it_simClus->impactPoint() = " << it_simClus->impactPoint().eta() << std::endl;
+    /*std::cout << "impactPoint_.x() = " << impactPoint_.x() << std::endl;*/
+    //std::cout << "it_simClus->impactMomentum().pt() = " << it_simClus->impactMomentum().pt() << std::endl;
+    simcluster_pt_impactMomentumPt_.push_back(it_simClus->impactMomentum().Pt());
+    simcluster_pt_impactMomentumPhi_.push_back(it_simClus->impactMomentum().Phi());
+    simcluster_pt_impactMomentumEta_.push_back(it_simClus->impactMomentum().Eta());
+    simcluster_pt_impactMomentumE_.push_back(it_simClus->impactMomentum().E());
+    //std::cout << "it_simClus->impactMomentum().E() = " << it_simClus->impactMomentum().E() << std::endl;
     simcluster_phi_impactPoint_.push_back(it_simClus->impactPoint().phi());
     simcluster_eta_impactPoint_.push_back(it_simClus->impactPoint().eta());
     simcluster_time_impactPoint_.push_back(it_simClus->impactPoint().t());
+    simcluster_x_impactPoint_.push_back(it_simClus->impactPoint().x());
+    simcluster_y_impactPoint_.push_back(it_simClus->impactPoint().y());
+    simcluster_z_impactPoint_.push_back(it_simClus->impactPoint().z());
     simcluster_eta_.push_back(it_simClus->eta());
     simcluster_phi_.push_back(it_simClus->phi());
     simcluster_pt_.push_back(it_simClus->pt());
     simcluster_pid_.push_back(it_simClus->pdgId());
     simcluster_energy_.push_back(it_simClus->energy());
+    //std::cout << "it_simClus->energy() = " << it_simClus->energy() << std::endl;
     simcluster_simEnergy_.push_back(it_simClus->simEnergy());
     simcluster_hits_.push_back(hits);
     simcluster_hits_indices_.push_back(hits_indices);
@@ -1740,6 +1854,7 @@ void HGCalAnalysis::analyze(const edm::Event &iEvent, const edm::EventSetup &iSe
       calopart_phi_.push_back(it_caloPart->phi());
       calopart_pt_.push_back(it_caloPart->pt());
       calopart_energy_.push_back(it_caloPart->energy());
+      std::cout << "it_caloPart->energy() = " << it_caloPart->energy() << std::endl;
       calopart_simEnergy_.push_back(it_caloPart->simEnergy());
       calopart_simClusterIndex_.push_back(simClusterIndex);
 
